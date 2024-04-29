@@ -68,7 +68,7 @@ func eventHandler(app *tview.Application, list, listSecond *tview.List, pathSeco
 				filePathListSecond := filepath.Join(pathSecond, selectedItemListSecond)
 				baseDir := filepath.Dir(filePathListSecond)
 				destinationPath := filepath.Join(baseDir, selectedItemListOne)
-
+				//Copying files
 				if event.Rune() == 'c' {
 
 					resultLabel.SetText(fmt.Sprintf("list1 %s, list2 %s", filePathListOne, destinationPath))
