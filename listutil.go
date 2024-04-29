@@ -21,7 +21,7 @@ func addToList(target *tview.List, label *tview.TextView, path string) {
 			target.AddItem(file.Name(), "", 0, nil)
 		}
 	}
-    label.SetText(fmt.Sprintf("Path: %s", path))
+	label.SetText(fmt.Sprintf("Path: %s", path))
 }
 
 func eventHandler(app *tview.Application, list, listSecond *tview.List, pathSecond, path string, resultLabel *tview.TextView) {
@@ -58,6 +58,9 @@ func eventHandler(app *tview.Application, list, listSecond *tview.List, pathSeco
 			case tcell.KeyTab:
 				app.SetFocus(listSecond)
 
+			case tcell.KeyEnter:
+				list.SetSelectedFocusOnly(true)
+
 			case tcell.KeyRune:
 				selectedIndexListOne := list.GetCurrentItem()
 				selectedItemListOne, _ := list.GetItemText(selectedIndexListOne)
@@ -68,6 +71,7 @@ func eventHandler(app *tview.Application, list, listSecond *tview.List, pathSeco
 				filePathListSecond := filepath.Join(pathSecond, selectedItemListSecond)
 				baseDir := filepath.Dir(filePathListSecond)
 				destinationPath := filepath.Join(baseDir, selectedItemListOne)
+
 				//Copying files
 				if event.Rune() == 'c' {
 
@@ -81,6 +85,8 @@ func eventHandler(app *tview.Application, list, listSecond *tview.List, pathSeco
 							resultLabel.SetText(fmt.Sprintf("Error copying: %s", err.Error()))
 						} else {
 							resultLabel.SetText(fmt.Sprintf("Copied successfully from %s to %s", filePathListOne, destinationPath))
+							listSecond.Clear()
+							addToList(listSecond, listSecondTitle, pathSecond) //refresh  list 2 after files/dir were copied
 
 						}
 						copy <- true
@@ -88,30 +94,39 @@ func eventHandler(app *tview.Application, list, listSecond *tview.List, pathSeco
 					}()
 					<-copy
 				}
+
+				//Moving files
 				if event.Rune() == 'm' {
 
 					move := make(chan bool)
 
-						go func() {
-							err := moveFile(filePathListOne, destinationPath)
-							if err != nil {
-								resultLabel.SetText(fmt.Sprintf("Error moving: %s", err.Error()))
-							} else {
-								resultLabel.SetText(fmt.Sprintf("Moved successfully from %s to %s", filePathListOne, destinationPath))
+					go func() {
+						err := moveFile(filePathListOne, destinationPath)
+						if err != nil {
+							resultLabel.SetText(fmt.Sprintf("Error moving: %s", err.Error()))
+						} else {
+							resultLabel.SetText(fmt.Sprintf("Moved successfully from %s to %s", filePathListOne, destinationPath))
+							list.Clear()
+							addToList(list, listTitle, path) //refresh  list 1 after files/dir were moved
+							listSecond.Clear()
+							addToList(listSecond, listSecondTitle, pathSecond) //refresh  list 2 after files/dir were moved
 
-							}
+						}
 						move <- true
 
 					}()
 					<-move
 				}
+				//Delete selected file/directory
 				if event.Rune() == 'd' {
 					os.Remove(filePathListOne)
 				}
+				//Get info about file/directory
 				if event.Rune() == 'i' {
 					fileType, fileFormatted, fileSize, creationTime := displaySingleFileInfo(filePathListOne)
 					resultLabel.SetText(fmt.Sprintf("Path: %s\n Type: %s\n Size: %.2f %s\n LastModified: %s", filePathListOne, fileType, fileFormatted, fileSize, creationTime))
 				}
+				//Stop application
 				if event.Rune() == 'q' {
 					app.Stop()
 				}
