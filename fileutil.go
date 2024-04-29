@@ -43,42 +43,44 @@ func copyFile(sourcePath, destPath string) error {
 
 
 func moveFile(src, dst string) error {
-    in, err := os.Open(src)
+    fileInfo, err := os.Stat(src)
     if err != nil {
         return err
     }
 
-    out, err := os.Create(dst)
-    if err != nil {
-        in.Close()
-        return err
-    }
-    defer out.Close()
+    if fileInfo.IsDir() {
+        err := copy.Copy(src, dst)
+        if err != nil {
+            return err
+        }
+        err = os.Remove(src)
+        if err != nil {
+            return err
+        }
+    } else {
+        sourceFile, err := os.Open(src)
+        if err != nil {
+            return err
+        }
+        defer sourceFile.Close()
 
-    _, err = io.Copy(out, in)
-    in.Close()
-    if err != nil {
-        return err
+        destFile, err := os.Create(dst)
+        if err != nil {
+            return err
+        }
+        defer destFile.Close()
+
+        _, err = io.Copy(destFile, sourceFile)
+        if err != nil {
+            return err
+        }
+
+        err = os.Remove(src)
+        if err != nil {
+            return err
+        }
     }
 
-    err = out.Sync()
-    if err != nil {
-        return err
-    }
-
-    si, err := os.Stat(src)
-    if err != nil {
-        return err
-    }
-    err = os.Chmod(dst, si.Mode())
-    if err != nil {
-        return err
-    }
-
-    err = os.Remove(src)
-    if err != nil {
-        return err
-    }
     return nil
 }
 

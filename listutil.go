@@ -73,20 +73,40 @@ func eventHandler(app *tview.Application, list, listSecond *tview.List, pathSeco
 
 					resultLabel.SetText(fmt.Sprintf("list1 %s, list2 %s", filePathListOne, destinationPath))
 
-					done := make(chan bool)
+					copy := make(chan bool)
 
 					go func() {
 						err := copyFile(filePathListOne, destinationPath)
 						if err != nil {
-							resultLabel.SetText(fmt.Sprintf("Error copying file: %s", err.Error()))
+							resultLabel.SetText(fmt.Sprintf("Error copying: %s", err.Error()))
 						} else {
-							resultLabel.SetText(fmt.Sprintf("File copied successfully from %s to %s", filePathListOne, destinationPath))
+							resultLabel.SetText(fmt.Sprintf("Copied successfully from %s to %s", filePathListOne, destinationPath))
 
 						}
-						done <- true
+						copy <- true
 
 					}()
-					<-done
+					<-copy
+				}
+				if event.Rune() == 'm' {
+
+					move := make(chan bool)
+
+						go func() {
+							err := moveFile(filePathListOne, destinationPath)
+							if err != nil {
+								resultLabel.SetText(fmt.Sprintf("Error moving: %s", err.Error()))
+							} else {
+								resultLabel.SetText(fmt.Sprintf("Moved successfully from %s to %s", filePathListOne, destinationPath))
+
+							}
+						move <- true
+
+					}()
+					<-move
+				}
+				if event.Rune() == 'd' {
+					os.Remove(filePathListOne)
 				}
 				if event.Rune() == 'i' {
 					fileType, fileFormatted, fileSize, creationTime := displaySingleFileInfo(filePathListOne)
