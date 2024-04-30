@@ -4,9 +4,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+)
+
+var (
+	sl []string
 )
 
 func addToList(target *tview.List, label *tview.TextView, path string) {
@@ -22,6 +27,15 @@ func addToList(target *tview.List, label *tview.TextView, path string) {
 		}
 	}
 	label.SetText(fmt.Sprintf("Path: %s", path))
+}
+
+func removeFromSlice(slice []string, text string) []string {
+    for i, v := range slice {
+			if v == text {
+				return append(slice[:i], slice[i+1:]...)
+			}
+		}
+	return slice
 }
 
 func eventHandler(app *tview.Application, list, listSecond *tview.List, pathSecond, path string, resultLabel *tview.TextView) {
@@ -54,12 +68,26 @@ func eventHandler(app *tview.Application, list, listSecond *tview.List, pathSeco
 					list.Clear()
 					path = parentDir
 					addToList(list, listTitle, path)
+					
+					// clear slice when moving through directories
+					sl = nil
 				}
 			case tcell.KeyTab:
 				app.SetFocus(listSecond)
 
 			case tcell.KeyEnter:
-				list.SetSelectedFocusOnly(true)
+				getItem := list.GetCurrentItem()
+				mainText, secondaryText := list.GetItemText(getItem)
+
+				if secondaryText == "" {
+					list.SetItemText(getItem, mainText, "selected")
+					sl = append(sl, mainText)
+				} else {
+					list.SetItemText(getItem, mainText, "")
+					sl = removeFromSlice(sl, mainText)
+				}
+				text := strings.Join(sl, "\n")
+				resultLabel.SetText("Selected items: "+text)
 
 			case tcell.KeyRune:
 				selectedIndexListOne := list.GetCurrentItem()
