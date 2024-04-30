@@ -30,11 +30,11 @@ func addToList(target *tview.List, label *tview.TextView, path string) {
 }
 
 func removeFromSlice(slice []string, text string) []string {
-    for i, v := range slice {
-			if v == text {
-				return append(slice[:i], slice[i+1:]...)
-			}
+	for i, v := range slice {
+		if v == text {
+			return append(slice[:i], slice[i+1:]...)
 		}
+	}
 	return slice
 }
 
@@ -68,7 +68,7 @@ func eventHandler(app *tview.Application, list, listSecond *tview.List, pathSeco
 					list.Clear()
 					path = parentDir
 					addToList(list, listTitle, path)
-					
+
 					// clear slice when moving through directories
 					sl = nil
 				}
@@ -87,7 +87,7 @@ func eventHandler(app *tview.Application, list, listSecond *tview.List, pathSeco
 					sl = removeFromSlice(sl, mainText)
 				}
 				text := strings.Join(sl, "\n")
-				resultLabel.SetText("Selected items: "+text)
+				resultLabel.SetText("Selected items: " + text)
 
 			case tcell.KeyRune:
 				selectedIndexListOne := list.GetCurrentItem()
