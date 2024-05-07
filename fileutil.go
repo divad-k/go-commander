@@ -8,75 +8,104 @@ import (
 	"github.com/otiai10/copy"
 )
 
-func copyFile(sourcePath, destPath string) error {
-	fileInfo, err := os.Stat(sourcePath)
-	if err != nil {
-		return err
+func copyFiles(sourcePaths, destPaths []string) error {
+	if len(sourcePaths) != len(destPaths) {
+		return nil
 	}
 
-	if fileInfo.IsDir() {
-		err := copy.Copy(sourcePath, destPath)
-		if err != nil {
-			return err
-		}
-	} else {
-		sourceFile, err := os.Open(sourcePath)
-		if err != nil {
-			return err
-		}
-		defer sourceFile.Close()
+	for i, sourcePath := range sourcePaths {
+		destPath := destPaths[i]
 
-		destFile, err := os.Create(destPath)
+		fileInfo, err := os.Stat(sourcePath)
 		if err != nil {
 			return err
 		}
-		defer destFile.Close()
 
-		_, err = io.Copy(destFile, sourceFile)
-		if err != nil {
-			return err
+		if fileInfo.IsDir() {
+			err := os.MkdirAll(destPath, 0755)
+			if err != nil {
+				return err
+			}
+
+			err = copy.Copy(sourcePath, destPath)
+			if err != nil {
+				return err
+			}
+
+		} else {
+			sourceFile, err := os.Open(sourcePath)
+			if err != nil {
+				return err
+			}
+			defer sourceFile.Close()
+
+			destFile, err := os.Create(destPath)
+			if err != nil {
+				return err
+			}
+			defer destFile.Close()
+
+			_, err = io.Copy(destFile, sourceFile)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	return nil
 }
 
-func moveFile(src, dst string) error {
-	fileInfo, err := os.Stat(src)
-	if err != nil {
-		return err
+
+func moveFiles(sourcePaths, destPaths []string) error {
+	if len(sourcePaths) != len(destPaths) {
+		return nil
 	}
 
-	if fileInfo.IsDir() {
-		err := copy.Copy(src, dst)
-		if err != nil {
-			return err
-		}
-		err = os.RemoveAll(src)
-		if err != nil {
-			return err
-		}
-	} else {
-		sourceFile, err := os.Open(src)
-		if err != nil {
-			return err
-		}
-		defer sourceFile.Close()
+	for i, sourcePath := range sourcePaths {
+		destPath := destPaths[i]
 
-		destFile, err := os.Create(dst)
-		if err != nil {
-			return err
-		}
-		defer destFile.Close()
-
-		_, err = io.Copy(destFile, sourceFile)
+		fileInfo, err := os.Stat(sourcePath)
 		if err != nil {
 			return err
 		}
 
-		err = os.Remove(src)
-		if err != nil {
-			return err
+		if fileInfo.IsDir() {
+			err := os.MkdirAll(destPath, 0755)
+			if err != nil {
+				return err
+			}
+
+			err = copy.Copy(sourcePath, destPath)
+			if err != nil {
+				return err
+			}
+
+			err = os.RemoveAll(sourcePath)
+			if err != nil {
+				return err
+			}
+		} else {
+			sourceFile, err := os.Open(sourcePath)
+			if err != nil {
+				return err
+			}
+			defer sourceFile.Close()
+
+			destFile, err := os.Create(destPath)
+			if err != nil {
+				return err
+			}
+			defer destFile.Close()
+
+			_, err = io.Copy(destFile, sourceFile)
+			if err != nil {
+				return err
+			}
+
+			err = os.Remove(sourcePath)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

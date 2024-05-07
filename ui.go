@@ -15,7 +15,7 @@ var (
 
 	informationLabel = tview.NewTextView().
 				SetTextAlign(tview.AlignLeft).
-				SetText("(c) copy (m) move (i) info (ENTER) select (q) quit")
+				SetText("(c) copy (m) move \n(d) delete (i) info (ENTER) select (q) quit")
 
 	listTitle = tview.NewTextView().
 			SetText("List One").

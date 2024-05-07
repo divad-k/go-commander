@@ -11,22 +11,29 @@ import (
 )
 
 var (
-	sl []string
+	selectedItems []string
+	dstPath []string
 )
 
-func addToList(target *tview.List, label *tview.TextView, path string) {
+func addToList(target *tview.List, label *tview.TextView, path string) error {
 	files, err := os.ReadDir(path)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	for _, file := range files {
-		if file.IsDir() {
 			target.AddItem(file.Name(), "", 0, nil)
-		} else {
-			target.AddItem(file.Name(), "", 0, nil)
-		}
 	}
-	label.SetText(fmt.Sprintf("Path: %s", path))
+	itemCount := target.GetItemCount()
+	label.SetText(fmt.Sprintf("Path: %s\n Items: %d", path, itemCount))
+	return nil
+}
+
+func appendToSlice(sl, sourceItems []string, baseDir string) []string {
+		for _, items := range sourceItems {
+		itms := filepath.Join(baseDir, filepath.Base(items))
+		sl = append(sl, itms)
+	}
+	return sl
 }
 
 func removeFromSlice(slice []string, text string) []string {
@@ -38,6 +45,109 @@ func removeFromSlice(slice []string, text string) []string {
 	return slice
 }
 
+
+func handleEnterKey(list *tview.List, label *tview.TextView, path string) {
+	selectedIndexListOne := list.GetCurrentItem()
+	selectedItemListOne, secondaryTextListOne := list.GetItemText(selectedIndexListOne)
+	filePathListOne := filepath.Join(path, selectedItemListOne)
+
+	if secondaryTextListOne == "" {
+		list.SetItemText(selectedIndexListOne, selectedItemListOne, "selected")
+		selectedItems = append(selectedItems, filePathListOne)
+	} else {
+		list.SetItemText(selectedIndexListOne, selectedItemListOne, "")
+		selectedItems = removeFromSlice(selectedItems, filePathListOne)
+	}
+	text := strings.Join(selectedItems, "\n")
+	label.SetText("Selected items: " + text)
+}
+
+func handleCopy(selectedItems []string, destinationPath []string, list, listSecond *tview.List, label, titleFirst, titleSecond *tview.TextView, path, pathSecond string) {
+	copy := make(chan bool)
+	go func() {
+		err := copyFiles(selectedItems, destinationPath)
+		if err != nil {
+			label.SetText(fmt.Sprintf("Error copying: %s", err.Error()))
+			copy <- false
+			return
+		}
+		 label.SetText(fmt.Sprintf("Copied successfully from %s to %s", selectedItems, destinationPath))
+
+		 	list.Clear()
+		  if err := addToList(list, titleFirst, path); err != nil {
+        label.SetText(fmt.Sprintf("Error updating list 1: %s", err))
+        copy <- false
+        return
+      }
+				listSecond.Clear()
+      if err := addToList(listSecond, titleSecond, pathSecond); err != nil {
+        label.SetText(fmt.Sprintf("Error updating list 2: %s", err))
+        copy <- false
+        return
+      }       
+		
+		copy <- true
+	}()
+	<-copy
+}
+
+func handleMove(selectedItems []string, destinationPath []string, list, listSecond *tview.List, label, titleFirst, titleSecond *tview.TextView, path, pathSecond string) {
+    move := make(chan bool)
+    go func() {
+        err := moveFiles(selectedItems, destinationPath)
+        if err != nil {
+            label.SetText(fmt.Sprintf("Error moving: %s", err.Error()))
+						move <- false
+						return
+        }
+          label.SetText(fmt.Sprintf("Moved successfully from %s to %s", selectedItems, destinationPath))
+
+				list.Clear()	
+        if err := addToList(list, titleFirst, path); err != nil {
+            label.SetText(fmt.Sprintf("Error updating list 1: %s", err))
+            move <- false
+            return
+        }
+				listSecond.Clear()
+        if err := addToList(listSecond, titleSecond, pathSecond); err != nil {
+            label.SetText(fmt.Sprintf("Error updating list 2: %s", err))
+            move <- false
+            return
+        }         
+        move <- true
+    }()
+    <-move
+}
+
+func handleRuneKey(app *tview.Application, r rune, list, listSecond *tview.List, titleFirst, titleSecond, label *tview.TextView, path, pathSecond string) {
+	selectedIndexListOne := list.GetCurrentItem()
+	selectedItemListOne, _ := list.GetItemText(selectedIndexListOne)
+	selectedIndexListSecond := listSecond.GetCurrentItem()
+	selectedItemListSecond, _ := listSecond.GetItemText(selectedIndexListSecond)
+
+	filePathListOne := filepath.Join(path, selectedItemListOne)
+	filePathListSecond := filepath.Join(pathSecond, selectedItemListSecond)
+	baseDir := filepath.Dir(filePathListSecond)
+	//destinationPath := filepath.Join(baseDir, selectedItemListOne)
+	
+
+	switch r {
+	case 'c':
+		dstPath = nil
+		handleCopy(selectedItems, appendToSlice(dstPath, selectedItems, baseDir), list, listSecond, label, titleFirst, titleSecond, path, pathSecond)
+	case 'm':
+		dstPath = nil
+		handleMove(selectedItems, appendToSlice(dstPath, selectedItems, baseDir), list, listSecond, label, titleFirst, titleSecond, path, pathSecond)
+	case 'd':
+		os.Remove(filePathListOne)
+	case 'i':
+		fileType, fileFormatted, fileSize, modifiedTime := displaySingleFileInfo(filePathListOne)
+		label.SetText(fmt.Sprintf("Path: %s\n Type: %s\n Size: %.2f %s\n LastModified: %s", filePathListOne, fileType, fileFormatted, fileSize, modifiedTime))
+	case 'q':
+		app.Stop()
+	}
+}
+
 func eventHandler(app *tview.Application, list, listSecond *tview.List, pathSecond, path string, resultLabel *tview.TextView) {
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch {
@@ -45,23 +155,39 @@ func eventHandler(app *tview.Application, list, listSecond *tview.List, pathSeco
 			// Event handling for list 1
 			switch event.Key() {
 			case tcell.KeyRight:
+				if list.GetItemCount() != 0 {
 				selectedIndex := list.GetCurrentItem()
 				selectedItem, _ := list.GetItemText(selectedIndex)
 				filePath := filepath.Join(path, selectedItem)
 				fileInfo, err := os.Stat(filePath)
 
 				if err != nil {
-					panic(err)
+					if os.IsPermission(err){
+						resultLabel.SetText(fmt.Sprintf("Access denied for: %s", filePath))
+						return event
+					} else if os.IsNotExist(err) {
+						resultLabel.SetText("Doesn't exist")
+						return event
+					}
+				panic(err)
 				}
 
 				if fileInfo.IsDir() {
 					path = filePath
 					list.Clear()
-					addToList(list, listTitle, path)
+					err := addToList(list, listTitle, path)
+					if err != nil {
+						resultLabel.SetText(fmt.Sprintf("Error: %s", err))
+					}
+					// clear slice when moving through directories
+					selectedItems = nil
+					dstPath = nil
+
 				} else {
 					fileType, fileFormatted, fileSize, creationTime := displaySingleFileInfo(filePath)
 					resultLabel.SetText(fmt.Sprintf("Path: %s\n Type: %s\n Size: %.2f %s\n LastModified: %s", filePath, fileType, fileFormatted, fileSize, creationTime))
 				}
+			}
 			case tcell.KeyLeft:
 				if len(path) > 0 {
 					parentDir := filepath.Dir(path)
@@ -70,93 +196,41 @@ func eventHandler(app *tview.Application, list, listSecond *tview.List, pathSeco
 					addToList(list, listTitle, path)
 
 					// clear slice when moving through directories
-					sl = nil
+					selectedItems = nil
+					dstPath = nil
+					// clear label when moving through directories
+					resultLabel.SetText("")
 				}
 			case tcell.KeyTab:
 				app.SetFocus(listSecond)
 
 			case tcell.KeyEnter:
-				getItem := list.GetCurrentItem()
-				mainText, secondaryText := list.GetItemText(getItem)
-
-				if secondaryText == "" {
-					list.SetItemText(getItem, mainText, "selected")
-					sl = append(sl, mainText)
-				} else {
-					list.SetItemText(getItem, mainText, "")
-					sl = removeFromSlice(sl, mainText)
-				}
-				text := strings.Join(sl, "\n")
-				resultLabel.SetText("Selected items: " + text)
+				handleEnterKey(list, resultLabel, path)
 
 			case tcell.KeyRune:
-				selectedIndexListOne := list.GetCurrentItem()
-				selectedItemListOne, _ := list.GetItemText(selectedIndexListOne)
-				selectedIndexListSecond := listSecond.GetCurrentItem()
-				selectedItemListSecond, _ := listSecond.GetItemText(selectedIndexListSecond)
-
-				filePathListOne := filepath.Join(path, selectedItemListOne)
-				filePathListSecond := filepath.Join(pathSecond, selectedItemListSecond)
-				baseDir := filepath.Dir(filePathListSecond)
-				destinationPath := filepath.Join(baseDir, selectedItemListOne)
-
 				//Copying files
 				if event.Rune() == 'c' {
-
-					resultLabel.SetText(fmt.Sprintf("list1 %s, list2 %s", filePathListOne, destinationPath))
-
-					copy := make(chan bool)
-
-					go func() {
-						err := copyFile(filePathListOne, destinationPath)
-						if err != nil {
-							resultLabel.SetText(fmt.Sprintf("Error copying: %s", err.Error()))
-						} else {
-							resultLabel.SetText(fmt.Sprintf("Copied successfully from %s to %s", filePathListOne, destinationPath))
-							listSecond.Clear()
-							addToList(listSecond, listSecondTitle, pathSecond) //refresh  list 2 after files/dir were copied
-
-						}
-						copy <- true
-
-					}()
-					<-copy
+					handleRuneKey(app, 'c', list, listSecond, listTitle, listSecondTitle, resultLabel, path, pathSecond)
 				}
 
 				//Moving files
 				if event.Rune() == 'm' {
+					handleRuneKey(app, 'm', list, listSecond, listTitle, listSecondTitle, resultLabel, path, pathSecond)
 
-					move := make(chan bool)
-
-					go func() {
-						err := moveFile(filePathListOne, destinationPath)
-						if err != nil {
-							resultLabel.SetText(fmt.Sprintf("Error moving: %s", err.Error()))
-						} else {
-							resultLabel.SetText(fmt.Sprintf("Moved successfully from %s to %s", filePathListOne, destinationPath))
-							list.Clear()
-							addToList(list, listTitle, path) //refresh  list 1 after files/dir were moved
-							listSecond.Clear()
-							addToList(listSecond, listSecondTitle, pathSecond) //refresh  list 2 after files/dir were moved
-
-						}
-						move <- true
-
-					}()
-					<-move
 				}
 				//Delete selected file/directory
 				if event.Rune() == 'd' {
-					os.Remove(filePathListOne)
+					handleRuneKey(app, 'd', list, listSecond, listTitle, listSecondTitle, resultLabel, path, pathSecond)
+
 				}
 				//Get info about file/directory
 				if event.Rune() == 'i' {
-					fileType, fileFormatted, fileSize, creationTime := displaySingleFileInfo(filePathListOne)
-					resultLabel.SetText(fmt.Sprintf("Path: %s\n Type: %s\n Size: %.2f %s\n LastModified: %s", filePathListOne, fileType, fileFormatted, fileSize, creationTime))
+					handleRuneKey(app, 'i', list, listSecond, listTitle, listSecondTitle, resultLabel, path, pathSecond)
+
 				}
 				//Stop application
 				if event.Rune() == 'q' {
-					app.Stop()
+					handleRuneKey(app, 'q', list, listSecond, listTitle, listSecondTitle, resultLabel, path, pathSecond)
 				}
 			}
 		case app.GetFocus() == listSecond:
