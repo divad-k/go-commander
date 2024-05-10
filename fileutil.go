@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"io"
 	"os"
 	"time"
@@ -10,7 +11,7 @@ import (
 
 func copyFiles(sourcePaths, destPaths []string) error {
 	if len(sourcePaths) != len(destPaths) {
-		return nil
+		return errors.New("sourcePaths and destPaths slices must have the same length")
 	}
 
 	for i, sourcePath := range sourcePaths {
@@ -55,10 +56,10 @@ func copyFiles(sourcePaths, destPaths []string) error {
 	return nil
 }
 
-
 func moveFiles(sourcePaths, destPaths []string) error {
 	if len(sourcePaths) != len(destPaths) {
-		return nil
+		return errors.New("sourcePaths and destPaths slices must have the same length")
+
 	}
 
 	for i, sourcePath := range sourcePaths {
@@ -125,7 +126,6 @@ func getLastModified(path interface{}) (string, error) {
 		fileInfo, err = os.Stat(filePath)
 	case os.DirEntry:
 		fileInfo, err = v.Info()
-		//filePath = fileInfo.Name()
 	default:
 		return "", err
 	}

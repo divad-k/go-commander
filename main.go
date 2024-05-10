@@ -21,7 +21,6 @@ func main() {
 	addToList(list, listTitle, path)
 	addToList(listSecond, listSecondTitle, path)
 	eventHandler(app, list, listSecond, pathSecond, path, resultLabel)
-	//eventHandler(app, listSecond, list, path, resultLabel)
 
 	if err := app.SetRoot(grid, true).Run(); err != nil {
 		panic(err)
