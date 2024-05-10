@@ -1,6 +1,6 @@
 # Go Commander
 ## Program Overview
-The Go commander application is a comprehensive file management tool developed in Go. Users can navigate through directories, copy, move, and delete files. Build with the help of [tview: Terminal UI library](https://github.com/rivo/tview). Currently in testing phase
+The Go commander application is a comprehensive file management tool developed in Go. Users can navigate through directories, copy, move, and delete files. Build with the help of [Tview library](https://github.com/rivo/tview). Currently in testing phase
 
 ## Usage
 
