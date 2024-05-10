@@ -2,7 +2,7 @@
 ## Program Overview
 The Go commander application is a comprehensive file management tool developed in Go. Users can navigate through directories, copy, move, and delete files. Built with [Tview library](https://github.com/rivo/tview). Currently undergoing testing.
 
-## Usage
+## Instructions
 
 Clone the repository:
 ```bash
@@ -16,3 +16,8 @@ Build the project using Go compiler:
 ```bash
 go build .
 ```
+## Usage
+- Use arrow keys to navigate through the lists.
+- Press Enter to select an item or directory.
+- Press Tab to switch focus between lists.
+- Use keys c for copy, m for move, d for delete, i for info, and q to quit.
