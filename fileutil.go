@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/otiai10/copy"
@@ -138,38 +139,80 @@ func getLastModified(path interface{}) (string, error) {
 	return createTime, nil
 }
 
-func sizeFile(size int64) (float64, string) {
+func Size(size int64) (float64, string) {
 	fileSize := float64(size)
-	defaultSize := "Bytes"
+	unit := "Bytes"
 
-	if fileSize > 1000000000 {
-		calc := fileSize / (1024 * 1024 * 1024)
-		size := "GB"
-		return calc, size
-	} else if fileSize > 1000000 {
-		calc := fileSize / (1024 * 1024)
-		size := "MB"
-		return calc, size
-	} else if fileSize > 1000 {
-		calc := fileSize / 1024
-		size := "KB"
-		return calc, size
+	if fileSize > 1_000_000_000 {
+		return fileSize / (1024 * 1024 * 1024), "GB"
+	} else if fileSize > 1_000_000 {
+		return fileSize / (1024 * 1024), "MB"
+	} else if fileSize > 1_000 {
+		return fileSize / 1024, "KB"
 	}
 
-	return fileSize, defaultSize
+	return fileSize, unit
 }
 
-func displaySingleFileInfo(filepath string) (string, float64, string, string) {
-	file, _ := os.Stat(filepath)
-	fileType := ""
-	formatted, size := sizeFile(file.Size())
-	creationTime, _ := getLastModified(filepath)
+func calcSize(path string) (int64, error) {
+	var totalSize int64
 
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		return 0, err
+	}
+
+	if !fileInfo.IsDir() {
+		return fileInfo.Size(), nil
+	}
+
+	var files []os.DirEntry
+	files, err = os.ReadDir(path)
+	if err != nil {
+		return 0, err
+	}
+
+	for _, file := range files {
+		filePath := filepath.Join(path, file.Name())
+		if file.IsDir() {
+			size, err := calcSize(filePath)
+			if err != nil {
+				return 0, err
+			}
+			totalSize += size
+		} else {
+			info, err := file.Info()
+			if err != nil {
+				return 0, err
+			}
+			totalSize += info.Size()
+		}
+	}
+	return totalSize, nil
+}
+
+
+func displaySingleFileInfo(filepath string) (string, float64, string, string, os.FileMode, error) {
+	file, err := os.Stat(filepath)
+	if err != nil {
+		return "", 0, "", "", 0, err
+	}
+	var fileType string
 	if file.IsDir() {
 		fileType = "Directory"
-		return fileType, formatted, size, creationTime
 	} else {
 		fileType = "File"
-		return fileType, formatted, size, creationTime
 	}
+	size, err := calcSize(filepath)
+		if err != nil {
+		return "", 0, "", "", 0, err
+	}
+	formattedSize, sizeUnit := Size(size)
+	creationTime, err := getLastModified(filepath)
+	if err != nil {
+		return "", 0, "", "", 0, err
+	}
+	mode := file.Mode().Perm()
+
+	return fileType, formattedSize, sizeUnit, creationTime, mode, nil
 }

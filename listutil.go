@@ -27,6 +27,7 @@ var (
 	dstPath       []string
 )
 
+
 func addToList(target *tview.List, label *tview.TextView, path string) error {
 	files, err := os.ReadDir(path)
 	if err != nil {
@@ -55,6 +56,20 @@ func removeFromSlice(slice []string, text string) []string {
 		}
 	}
 	return slice
+}
+
+func handleInfoKey(path string, label *tview.TextView) {
+	if list.GetItemCount() != 0 {
+		selectedIndexListOne := list.GetCurrentItem()
+		selectedItemListOne, _ := list.GetItemText(selectedIndexListOne)
+		filePathListOne := filepath.Join(path, selectedItemListOne)
+
+		fileType, formattedSize, sizeUnit, creationTime, mode, err := displaySingleFileInfo(filePathListOne)
+		if err != nil {
+			label.SetText(fmt.Sprintf("Error:", err))
+		}
+		label.SetText(fmt.Sprintf("Path: %s\n Type: %s\n Size: %.2f %s\n LastModified: %s \n Permissions: %s", filePathListOne, fileType, formattedSize, sizeUnit, creationTime, mode))
+	}
 }
 
 func handleEnterKey(list *tview.List, label *tview.TextView, path string) {
@@ -136,24 +151,27 @@ func handleMove(selectedItems []string, destinationPath []string, list, listSeco
 
 func handleRuneKey(app *tview.Application, r rune, list, listSecond *tview.List, titleFirst, titleSecond, label *tview.TextView, path, pathSecond string) {
 	switch r {
+
 	case CopyKey:
 		dstPath = nil
 		handleCopy(selectedItems, appendToSlice(dstPath, selectedItems, pathSecond), list, listSecond, label, titleFirst, titleSecond, path, pathSecond)
 		selectedItems = nil
+
 	case MoveKey:
 		dstPath = nil
 		handleMove(selectedItems, appendToSlice(dstPath, selectedItems, pathSecond), list, listSecond, label, titleFirst, titleSecond, path, pathSecond)
 		selectedItems = nil
+
 	case DeleteKey:
 		for _, items := range selectedItems {
 			os.RemoveAll(items)
 		}
-
 		list.Clear()
 		addToList(list, listTitle, path)
+
 	case InfoKey:
-		fileType, fileFormatted, fileSize, modifiedTime := displaySingleFileInfo(path)
-		label.SetText(fmt.Sprintf("Path: %s\n Type: %s\n Size: %.2f %s\n LastModified: %s", path, fileType, fileFormatted, fileSize, modifiedTime))
+		handleInfoKey(path, label)
+
 	case QuitKey:
 		app.Stop()
 	}
@@ -189,8 +207,7 @@ func handleRightKey(event *tcell.EventKey, list *tview.List, path string, title,
 			dstPath = nil
 
 		} else {
-			fileType, fileFormatted, fileSize, creationTime := displaySingleFileInfo(filePath)
-			resultLabel.SetText(fmt.Sprintf("Path: %s\n Type: %s\n Size: %.2f %s\n LastModified: %s", filePath, fileType, fileFormatted, fileSize, creationTime))
+			resultLabel.SetText("File")
 		}
 	}
 	return path, event
